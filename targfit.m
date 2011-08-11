@@ -1,4 +1,4 @@
-function [trials,target_time,target_pos] = targfit(filename,print_flag)
+function [trials,B] = targfit(filename,print_flag)
 % eyefit - fit ideal funtion to eye trace data to estimate gain and lag of
 % participant eye motion. Eye traces are broken into fast and slow
 % components. The fast components are the saccades. Right now saccade tags
@@ -93,6 +93,8 @@ for i=1:numTrials
     eye_pos = cumsum(eye_vel);
     eye_time = trials(i).eye(:,1);
     target_time = trials(i).target(:,1);
+    target_time_sec = target_time/1000; % convert to seconds
+    eye_time_sec = eye_time/1000;
     
     %% detrend
     slow_eye_pos = detrend(slow_eye_pos);
@@ -100,29 +102,78 @@ for i=1:numTrials
     eye_pos = detrend(eye_pos);
     target_pos = detrend(target_pos);
     
-    %% fit func to target data
+    %% scale data to degrees
+    pixelWidth = 38.5 / 800; % FIXME  get numbers from data file.
+    degPerPixel = atand(pixelWidth/60);  % FIXME  get numbers from data file.
+    target_pos = target_pos * degPerPixel;
+    slow_eye_pos = slow_eye_pos * degPerPixel;
+    eye_pos = eye_pos * degPerPixel;
+    fast_eye_pos = fast_eye_pos * degPerPixel;
+
+    
+    
+    %% fit func to data
     target_fit_pos = zeros(size(target_pos));
     % t_amp = 109.4;
     % t_rate = 1/sscanf(period,'%f');
     % t_phase = -0.5;
     % trials.eye(:,2) = t_amp*sin(t_phase + 2*pi*t_rate*(1:length(trials.eye(:,2)))/sample_rate);
+    % init guesses: amp, phase, freq, offset
+    B0 = [ 10, 0, 2/sscanf(period,'%f'),0];
+    Btarg = nlinfit(target_time_sec,target_pos,@mysin,B0);   
+    target_fit_pos = mysin(Btarg,target_time_sec);
     
-    % init guesses: amp, phase, freq
-    beta0 = [ 10, 0, 2/sscanf(period,'%f'),0];
-    beta = nlinfit(target_time,target_pos,@mysin,beta0);   
-    target_fit_pos = mysin(beta,target_time);
-    
+    B0 = [ 10, 0, 1/sscanf(period,'%f'),0];
+    Bslow = nlinfit(eye_time_sec,slow_eye_pos,@mysin,B0);   
+    slow_eye_fit_pos = mysin(Bslow,eye_time_sec);
+
+    B0 = [ 10, 0, 1/sscanf(period,'%f'),0];
+    Bslow = nlinfit(eye_time_sec,eye_pos,@mysin,B0);   
+    eye_fit_pos = mysin(Bslow,eye_time_sec);
+
     
     %% plot eye positions plot 1
+    subplot(2,1,1)
     plot(...
-        target_time,target_fit_pos,...
-        target_time,target_pos,'k:')
-    legend('target');
-    xlim([0 40000])
+        target_time_sec,target_fit_pos,'g:',...
+        target_time_sec,target_pos,'g',...
+        eye_time_sec,eye_pos,'r',...
+        eye_time_sec,eye_fit_pos,'r:'...
+        )
+    legend('target fit','target','eye','eye fit');
+    %     xlim([0 40000])
     title(direction)
     
-    %     %% plot eye traces plot 2
-    %     subplot(2,2,2)
+    %% plot 2
+    subplot(2,1,2)
+    plot(...
+        target_time_sec,target_pos,'g',...
+        eye_time_sec,slow_eye_pos,'r',...
+        eye_time_sec,slow_eye_fit_pos,'r:',...
+        eye_time_sec,fast_eye_pos,'b'...
+        )
+    legend('target','slow','slow fit','fast');
+    
+    filename = strrep(filename,'_',' ');
+    s = '';
+    s = [s sprintf( ' file: %s \n background: %s \n direction: %s \n period: %s \n freq %.3f\n',...
+        filename,background,direction,period,1/sscanf(period,'%f sec'))];
+    s = [s sprintf( '\ncomposite eye gain: %.3f at %.3f Hz\nslow eye gain: %.3f at %.3f Hz\n',...
+        0,...
+        0,...
+        0,...
+        0)];
+    s = [s sprintf( '\ncomposite eye phase: %.3f at %.3f Hz\nslow eye phase: %.3f at %.3f Hz\n',...
+        0,...
+        0,...
+        0,...
+        0)];
+    
+%     text(1,0,s);
+fprintf(s);
+    
+    
+    
     %     plot(trials(i).eye(:,1),eye_pos, 'b',trials(i).sac_L(:,1),saccade_start,'g*',trials(i).sac_L(:,2),saccade_end,'r*');
     %     xlabel('Time (msec)'), ylabel('Eye position (pixels)');
     %     legend('composite','target','sacc start','sacc end');
@@ -167,12 +218,13 @@ return
 
 
 
-function yhat = mysin(beta,X)
-f_amp = beta(1);
-f_phase = beta(2);
-f_rate = beta(3);
+function yhat = mysin(B,X)
+f_amp = B(1);
+f_phase = B(2);
+f_rate = B(3);
+f_offset = B(4);
 sample_rate = 250;
-yhat = f_amp * sin(f_phase + 2*pi * f_rate * (1:length(X))' / sample_rate);
+yhat = f_offset + f_amp * sin(f_phase + 2*pi * f_rate * (1:length(X))' / sample_rate);
 
 return
 
