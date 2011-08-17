@@ -136,8 +136,18 @@ fclose(fid);
 txt=fileread(fileloc);
 
 %% determine the number of trials
-numTrials=1;
+
+
 fprintf('\nfind trials');
+
+k = strfind(txt,'TRIALID 0');
+if isempty(k)
+    firstTrial = 1;
+else
+    error('trial id 0 found')
+end
+
+numTrials = firstTrial;
 while 1
     fprintf('.');
     if strfind(txt,['TRIALID ' num2str(numTrials)])
@@ -150,7 +160,9 @@ end
 numTrials=numTrials-1;
 
 %% parse trials
-for trial=1:numTrials
+trial_idx = 0;
+for trial=firstTrial:numTrials
+    trial_idx = trial_idx + 1;
     fprintf('trial %d',trial);
     k1=strfind(txt,['TRIALID ' num2str(trial) ' SP']);
     if isempty(k1)
@@ -245,15 +257,15 @@ for trial=1:numTrials
         end
     end
     fprintf('\n');
-    trials(trial).eye=eyePos;
-    trials(trial).target=targetPos;
-    trials(trial).sac_L=saccades_L;
-    trials(trial).sac_R=saccades_R;
+    trials(trial_idx).eye=eyePos;
+    trials(trial_idx).target=targetPos;
+    trials(trial_idx).sac_L=saccades_L;
+    trials(trial_idx).sac_R=saccades_R;
 end
 %% save processed data
 of=[ascFile(1:length(ascFile)-3) 'mat'];
 
-save([resultPath of],'trials','background','period','sample_rate','direction','targetFrequency','targetSize','targetColor','collectedData');
+save([resultPath of],'trials','background','period','sample_rate','direction','targetFrequency','targetSize','collectedData');
 
 if strcmp(waveform,'Pseudo-random')
     save([resultPath of],'pseudoRandBand','-append');
@@ -262,8 +274,11 @@ end
 if exist('checkSize','var')
     save([resultPath of],'checkSize','-append');
 end
+   
+if exist('targetColor','var')
+    save([resultPath of],'targetColor','-append');
+end
     
-
 
 view_trials(trials);
 

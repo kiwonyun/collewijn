@@ -1,4 +1,4 @@
-function [trials] = targfit(filename,print_flag)
+function [eye,target] = targfit(filename,print_flag)
 % targfit - fit ideal funtion to eye trace data to estimate gain and lag of
 % participant eye motion. Eye traces are broken into fast and slow
 % components. The fast components are the saccades. Right now saccade tags
@@ -62,7 +62,7 @@ for i=1:numTrials
     saccade_end = detrend(trials(i).sac(:,7));
     saccade_start = detrend(trials(i).sac(:,5));
     
-    %% decomp into fast and slow
+    %% decomp into fast and slow FIXME change to 2D analysis instead of picking one direction
     switch direction
         case 'Horizontal'
             eye_vel = [trials(i).eye(1,2) ; diff( trials(i).eye(:,2))];
@@ -110,27 +110,37 @@ for i=1:numTrials
     eye_pos = eye_pos * degPerPixel;
     fast_eye_pos = fast_eye_pos * degPerPixel;
     
-    
+%     target_pos = resample(target_pos,length(eye_pos),length(target_pos));
+%     target_time_sec = resample(target_time_sec,length(eye_pos),length(target_time_sec));
     
     %% fit func to data
-    %     target_fit_pos = zeros(size(target_pos));
-    % t_amp = 109.4;
-    % t_rate = 1/sscanf(period,'%f');
-    % t_phase = -0.5;
-    % trials.eye(:,2) = t_amp*sin(t_phase + 2*pi*t_rate*(1:length(trials.eye(:,2)))/sample_rate);
+%     statopts = statset('Display','iter');
+    statopts = [];
     
     % init guesses: amp, phase, freq, offset
-    B0 = [ 10, 0, 2/sscanf(period,'%f'),0];
-    Btarg = nlinfit(target_time_sec,target_pos,@mysin,B0);
+    B0 = [ 5, 0, 1/sscanf(period,'%f'),0]; % FIXME  why is this 2/ and not 1/ ?
+    %     Btarg=B0;
+    Btarg = nlinfit(target_time_sec,target_pos,@mysin,B0,statopts);
     target_fit_pos = mysin(Btarg,target_time_sec);
     
-    B0 = [ 10, 0, 1/sscanf(period,'%f'),0];
-    Bslow = nlinfit(eye_time_sec,slow_eye_pos,@mysin,B0);
+    B0 = [ 5, 0, 1/sscanf(period,'%f'),0];
+    Bslow = nlinfit(eye_time_sec,slow_eye_pos,@mysin,B0,statopts);
     slow_eye_fit_pos = mysin(Bslow,eye_time_sec);
     
-    B0 = [ 10, 0, 1/sscanf(period,'%f'),0];
-    Beye = nlinfit(eye_time_sec,eye_pos,@mysin,B0);
+    B0 = [ 5, 0, 1/sscanf(period,'%f'),0];
+    Beye = nlinfit(eye_time_sec,eye_pos,@mysin,B0,statopts);
     eye_fit_pos = mysin(Beye,eye_time_sec);
+    
+        fprintf('fit targ freq: %.3f fit eye freq: %.3f\n',Btarg(3),Beye(3));
+    
+    %% collect data for output
+    eye(i).pos = eye_pos;
+    eye(i).time = eye_time_sec;
+    eye(i).fit = eye_fit_pos;
+    target(i).pos = target_pos;
+    target(i).time = target_time_sec;
+    target(i).fit = target_fit_pos;
+    
     
     clf
     %% plot eye positions plot 1
@@ -164,8 +174,11 @@ for i=1:numTrials
         s = [s sprintf(', check size: %s',checkSize)];
     end
     s = [s sprintf( '\n direction: %s, period: %s, freq: %.3f \n',direction,period,1/sscanf(period,'%f sec'))];
-    s = [s sprintf( ' target color: %s, target size: %s\n',targetColor,targetSize)];
-    s = [s sprintf( ' composite gain: %.3f, phase: %.3f \n slow gain: %.3f, phase: %.3f \n',...
+    s = [s sprintf( ' target size: %s,',targetSize)];
+    if exist('targetColor','var')
+        s = [s sprintf(', targetColor: %s',targetColor)];
+    end
+    s = [s sprintf( '\n composite gain: %.3f, phase: %.3f \n slow gain: %.3f, phase: %.3f \n',...
         Beye(1)/Btarg(1), Beye(2)-Btarg(2), Bslow(1)/Btarg(1), Bslow(2)-Btarg(2)) ];
     fprintf(s); 
     fprintf('***');
@@ -198,36 +211,13 @@ end
 return
 
 %% function to fit
-% You need to define your 'model' as a function (possibly in a seperate m-file). For example
-%
-% >>beta = nlinfit(X,y,myfun,beta0)
-%
-% where MYFUN is a MATLAB function such as:
-% function yhat = myfun(beta, X)
-% b1 = beta(1);
-% b2 = beta(2);
-% yhat = 1 ./ (1 + exp(b1 + b2*X));
-%
-%
-% MYFUN can also be an inline object:
-% fun = inline('1 ./ (1 + exp(b(1) + b(2*x))', 'b', 'x')
-% nlinfit(x, y, fun, b0)
-
-% t_amp = 109.4;
-% t_rate = 1/sscanf(period,'%f');
-% t_phase = -0.5;
-% trials.eye(:,2) = t_amp*sin(t_phase + 2*pi*t_rate*(1:length(trials.eye(:,2)))/sample_rate);
-
-
-
-
+% init guesses: 1 amp, 2 phase, 3 freq, 4 offset
 function yhat = mysin(B,X)
 f_amp = B(1);
 f_phase = B(2);
 f_rate = B(3);
 f_offset = B(4);
-sample_rate = 250;
-yhat = f_offset + f_amp * sin(f_phase + 2*pi * f_rate * (1:length(X))' / sample_rate);
+yhat = f_offset + f_amp * sin(f_phase +  (2*pi) * f_rate * X);
 
 return
 
