@@ -1,7 +1,10 @@
 function trials = read_el_sp(filename)
-% progName='read_el_sp.m';
+% read_el_sp - 
+% use this to convert eyelink asc data to the .mat files we use for
+% analysis. called by process_all_asc_data
 progPath = fileparts(which(mfilename));
-resultPath=[progPath filesep 'results' filesep];
+resultPath=[pwd filesep 'results' filesep];
+
 
 trials=struct('eye',{}, 'target',{}, 'sac_L',{}, 'sac_R',{});
 
@@ -69,6 +72,10 @@ for idx = 1:100
         s = strfindRev( oneline,':',length(oneline) );
         targetSpeed=strtrim(s(2:end));
         %         t=remain;
+    elseif strfind(oneline,'Frequency:')
+        s = strfindRev( oneline,':',length(oneline) );
+        targetFrequency=strtrim(s(2:end));
+        %         t=remain;
     elseif strfind(oneline,'Pursuit Amplitude:')
         s = strfindRev( oneline,':',length(oneline) );
         amplitude=strtrim(s(2:end));
@@ -93,7 +100,17 @@ for idx = 1:100
         nT=strtrim(s(2:end));
         %t=remain;
         fprintf('\n');
-%         break;
+    elseif strfind(oneline,'Target Size:')
+        s = strfindRev( oneline,':',length(oneline) );
+        targetSize=strtrim(s(2:end));
+        %t=remain;
+        fprintf('\n');
+    elseif strfind(oneline,'Bakground Check Size:') % [sic]
+        s = strfindRev( oneline,':',length(oneline) );
+        checkSize=strtrim(s(2:end));
+        %t=remain;
+        fprintf('\n');
+        %         break;
     elseif strfind(oneline,'START')
         collectedData = textscan(oneline,'%s');
         collectedData = collectedData{1};
@@ -236,11 +253,17 @@ end
 %% save processed data
 of=[ascFile(1:length(ascFile)-3) 'mat'];
 
+save([resultPath of],'trials','background','period','sample_rate','direction','targetFrequency','targetSize','targetColor','collectedData');
+
 if strcmp(waveform,'Pseudo-random')
-    save([resultPath of],'trials','background','pseudoRandBand','sample_rate','direction');
-else
-    save([resultPath of],'trials','background','period','sample_rate','direction');
+    save([resultPath of],'pseudoRandBand','-append');
 end
+
+if exist('checkSize','var')
+    save([resultPath of],'checkSize','-append');
+end
+    
+
 
 view_trials(trials);
 
