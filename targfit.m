@@ -160,7 +160,7 @@ for i=1:numTrials
     s = [s sprintf( ' file: %s \n trial: %d \n background: %s \n direction: %s \n period: %s \n freq: %.3f\n',...
         filename,i,background,direction,period,1/sscanf(period,'%f sec'))];
     s = [s sprintf( ' composite gain: %.3f phase: %.3f \n slow gain: %.3f phase: %.3f \n',...
-        Beye(1)/Btarg(1), Beye(2)-Btarg(2), Bslow(1)/Btarg(1)), Bslow(2)-Btarg(2) ];
+        Beye(1)/Btarg(1), Beye(2)-Btarg(2), Bslow(1)/Btarg(1), Bslow(2)-Btarg(2)) ];
     
     %     text(1,0,s);
     fprintf(s); % FIXME not printing the slow phase  wtf?

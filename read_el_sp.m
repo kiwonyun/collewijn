@@ -1,9 +1,7 @@
 function trials = read_el_sp(filename)
-% read_el_sp - 
-% use this to convert eyelink asc data to the .mat files we use for
-% analysis. called by process_all_asc_data
+% progName='read_el_sp.m';
 progPath = fileparts(which(mfilename));
-resultPath=[pwd filesep 'results' filesep];
+resultPath=[progPath filesep 'results' filesep];
 
 trials=struct('eye',{}, 'target',{}, 'sac_L',{}, 'sac_R',{});
 
@@ -81,9 +79,6 @@ for idx = 1:100
     elseif strfind(oneline,'Period:')
         s = strfindRev( oneline,':',length(oneline) );
         period=strtrim(s(2:end));
-    elseif strfind(oneline,'Frequency:')
-        s = strfindRev( oneline,':',length(oneline) );
-        targetFrequency=strtrim(s(2:end));
         %         t=remain;
     elseif strfind(oneline,'Number of Periods:')
         s = strfindRev( oneline,':',length(oneline) );
@@ -98,26 +93,22 @@ for idx = 1:100
         nT=strtrim(s(2:end));
         %t=remain;
         fprintf('\n');
-    elseif strfind(oneline,'Target Size:')
-        s = strfindRev( oneline,':',length(oneline) );
-        targetSize=strtrim(s(2:end));
-        %t=remain;
-        fprintf('\n');
-    elseif strfind(oneline,'Bakground Check Size:')
-        s = strfindRev( oneline,':',length(oneline) );
-        checkSize=strtrim(s(2:end));
-        %t=remain;
-        fprintf('\n');
+%         break;
     elseif strfind(oneline,'START')
         collectedData = textscan(oneline,'%s');
         collectedData = collectedData{1};
         %t=remain;
-        fprintf('%s \n',collectedData{:});
-        break;
+        fprintf('%s \n',collectedData{:});  
+        if exist('sample_rate','var')
+            break;
+        end
     elseif strfind(oneline,'RECORD')
         temp = sscanf(oneline,'MSG	%d !MODE RECORD %s %d %d %d');
         fprintf('found start of recording. %d Hz\n',temp(3));
         sample_rate = temp(3);
+        if exist('collectedData','var')
+            break;
+        end
     else
         %         t=remain;
     end
@@ -245,16 +236,11 @@ end
 %% save processed data
 of=[ascFile(1:length(ascFile)-3) 'mat'];
 
-save([resultPath of],'trials','background','period','sample_rate','direction','targetFrequency','targetSize');
-
 if strcmp(waveform,'Pseudo-random')
-    save([resultPath of],'pseudoRandBand','-append');
+    save([resultPath of],'trials','background','pseudoRandBand','sample_rate','direction');
+else
+    save([resultPath of],'trials','background','period','sample_rate','direction');
 end
-
-if exist('checkSize','var')
-    save([resultPath of],'checkSize','-append');
-end
-    
 
 view_trials(trials);
 

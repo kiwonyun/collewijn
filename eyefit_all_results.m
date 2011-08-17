@@ -1,8 +1,8 @@
 %% find data
 
-D = 'asc_data/'; % directory with asc data, put converted data here.
+D = 'results/'; % directory with results of process_all_asc, put processed data here.
 
-F = dir([D '*.asc']);
+F = dir([D '*.mat']);
 nF = size(F,1);
 
 
@@ -11,5 +11,6 @@ nF = size(F,1);
 for idx = 1:nF % process each file in the directory D
     filename = [D F(idx).name];
     disp(filename)
-    read_el_sp(filename);
+    eyefit(filename,true);
+    disp('done.')
 end
