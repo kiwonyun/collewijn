@@ -144,7 +144,7 @@ k = strfind(txt,'TRIALID 0');
 if isempty(k)
     firstTrial = 1;
 else
-    error('trial id 0 found')
+    error('*** trial id 0 found. trial ids must be consecutive integers from 1. fix the file before convert.')
 end
 
 numTrials = firstTrial;

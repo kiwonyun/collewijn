@@ -4,4 +4,8 @@ data analysis notes
  their folders.
  3. run the data converter script, process_all_asc_data.m that, will 
    run the converter on all the subjects
- 4. run collewijn_all_results.m
+ 4. run collewijn_all_results.m or just run collewijn.m for individual runs
+
+
+collewijn for fourier analysis
+targfit is for ideal function fit analysis
