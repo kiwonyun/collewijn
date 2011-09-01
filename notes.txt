@@ -9,3 +9,5 @@ data analysis notes
 
 collewijn for fourier analysis
 targfit is for ideal function fit analysis
+
+31 aug 2011 - msb - fixed gain and phase calculations

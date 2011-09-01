@@ -29,6 +29,9 @@ if ~exist('print_flag','var') % whether or not to print the results to a pdf fil
     print_flag = false;
 end
 
+%% fourier analysis for comparison
+f_eye = fouri(trials,direction,sample_rate);
+
 % view trials
 numTrials = size(trials,2);
 for i=1:numTrials
@@ -174,22 +177,32 @@ for i=1:numTrials
         )
     legend('target','slow','slow fit','fast','Location','NorthEastOutside');
     
+    
     %% build ouput string
     filename = strrep(filename,'_',' ');
     s = '';
     s = [s sprintf( ' file: %s, trial: %d, eye: %s \n',filename,i,collectedData{3})];
     s = [s sprintf( ' background: %s',background)];
+    
     if exist('checkSize','var')
         s = [s sprintf(', check size: %s',checkSize)];
     end
+    
     s = [s sprintf( '\n direction: %s, period: %s, freq: %.3f \n',direction,period,1/sscanf(period,'%f sec'))];
     s = [s sprintf( ' target size: %s,',targetSize)];
+    
     if exist('targetColor','var')
         s = [s sprintf(', targetColor: %s',targetColor)];
     end
-    s = [s sprintf( '\n composite gain: %.3f, phase: %.3f \n slow gain: %.3f, phase: %.3f \n',...
-        Beye(1)/Btarg(1), Beye(2)-Btarg(2), Bslow(1)/Btarg(1), Bslow(2)-Btarg(2)) ];
-    s = [s sprintf('fit targ freq: %.3f fit eye freq: %.3f\n',Btarg(3),Beye(3)) ];
+    
+    s = [s sprintf( '\n COMP gain: %.3f, phase: %.3f | fourier gain: %.3f, fourier phase: %.3f ',...
+        Beye(1)/Btarg(1), rad2deg(Beye(2)-Btarg(2)), f_eye(i).gain, f_eye(i).phase) ];
+    s = [s sprintf( '\n SLOW gain: %.3f, phase: %.3f | fourier gain: %.3f, fourier phase: %.3f \n',...
+        Bslow(1)/Btarg(1), rad2deg(Bslow(2)-Btarg(2)), f_eye(i).slow.gain, f_eye(i).slow.phase) ];
+    s = [s sprintf(' fit targ freq: %.3f, func fit eye freq: %.3f, fourier freq: %.3f  ',...
+        Btarg(3),Beye(3),f_eye(i).freq) ];
+    
+    
     fprintf(s);
     fprintf('***');
     
@@ -223,11 +236,8 @@ return
 %% function to fit
 % init guesses: 1 amp, 2 phase, 3 freq, 4 offset
 function yhat = mysin(B,X)
-f_amp = B(1);
-f_phase = B(2);
-f_rate = B(3);
-f_offset = B(4);
-yhat = f_offset + f_amp * sin( f_phase +  (2*pi) * f_rate * X);
+
+yhat = B(4) + B(1) * cos( B(2) +  2*pi * B(3) * X);
 
 return
 
