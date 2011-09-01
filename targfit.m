@@ -73,7 +73,6 @@ for i=1:numTrials
 %     saccade_end = detrend(trials(i).sac(:,7));
 %     saccade_start = detrend(trials(i).sac(:,5));
     
-    %% decomp into fast and slow FIXME change to 2D analysis instead of picking one direction
     switch direction
         case 'Horizontal'
             eye_vel = [trials(i).eye(1,2) ; diff( trials(i).eye(:,2))];
