@@ -16,3 +16,19 @@ targfit is for ideal function fit analysis
 31 aug 2011 - msb - fixed gain and phase calculations
 
 
+data files contain:
+background = 
+disp('0 -- No background');
+disp('1 -- Sharp-Edged Gaussian Noise');
+disp('2 -- Soft-Edged Gaussian Noise');
+disp('3 -- Sharp-Edged Binary Noise');
+disp('4 -- Soft-Edged Binary Noise');
+disp('5 -- 1/f Noise');
+disp('6 -- Sinusoidal Grating');
+collectedData = is strings indicating what kind of data was collected
+direction = vertical or horizontal
+period = target moition period
+sample_rate = eyetracker sample rate in Hz
+targetFrequency = just 1/period
+targetSize = target size in pixels
+trials = the trial data structure below
