@@ -1,3 +1,6 @@
+
+code is at http://code.google.com/p/collewijn/
+
 data analysis notes
  1. convert edfs to asc using the edf converter gui from sr research
  2. make folders results, asc_data, edf_data and put asc in edf data in
@@ -11,3 +14,5 @@ collewijn for fourier analysis
 targfit is for ideal function fit analysis
 
 31 aug 2011 - msb - fixed gain and phase calculations
+
+
