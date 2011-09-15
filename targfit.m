@@ -36,7 +36,7 @@ f_eye = fouri(trials,direction,sample_rate);
 numTrials = size(trials,2);
 for i=1:numTrials
     
-    figure(i)
+    figure(i) % TODO combine plots
     numSac_L=size(trials(i).sac_L,1);
     if numSac_L > 0
 %         a=mean(trials(i).sac_L,1);
@@ -90,6 +90,7 @@ for i=1:numTrials
     sacc_on(sacc_on<1) = 1;
     sacc_off(sacc_off<2) = 2;
     
+    %% break into slow and fast
     eye_slow = ones(size(eye_vel));
     for sacc_idx = 1:length(sacc_on)
         eye_slow(sacc_on(sacc_idx):sacc_off(sacc_idx)) = 0;
@@ -234,7 +235,7 @@ return
 
 %% function to fit
 % init guesses: 1 amp, 2 phase, 3 freq, 4 offset
-function yhat = mysin(B,X)
+function yhat = mysin(B,X) % TODO add other predictors into model like turnarounds and extra cos for pseudo random
 
 yhat = B(4) + B(1) * cos( B(2) +  2*pi * B(3) * X);
 

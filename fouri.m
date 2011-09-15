@@ -9,23 +9,27 @@ function eye = fouri(trials,direction,sample_rate)
 % to preprocess and convert the asc data to .mat files.
 %
 % this was collewijn with ploting and some other stuff removed
+% TODO take out code that is common to targfit.m or merge 
+% TODO upsample target position to eye position sample rate to fix gain and
+% phase measures.
 
 numTrials = size(trials,2);
 for i=1:numTrials
     
     %     figure(i)
-    numSac_L=size(trials(i).sac_L,1);
+    numSac_L=size(trials(i).sac_L,1); % FIXME is it ok to create this dummy saccade if no saccades present?
     if numSac_L > 0
     else
         trials(i).sac_L = [0 0 0 0 0 0 0 0 0]; %#ok<*AGROW>
     end
-    numSac_R=size(trials(i).sac_R,1);
+    numSac_R=size(trials(i).sac_R,1); 
     if numSac_R > 0
     else
         trials(i).sac_R = [0 0 0 0 0 0 0 0 0];
     end
     
-    %% identify saccades
+    %% identify saccades,  may only be tracking right eye
+    % eye tracker does not always give same number of saccades in both eyes
     if numSac_L == 0
         trials(i).sac = trials(i).sac_R;
     else
@@ -33,25 +37,36 @@ for i=1:numTrials
     end
     
     
-    %% decomp into fast and slow plot 1
-    switch direction
+    %% decomp into fast and slow plot 1 
+    switch direction % TODO !! need to revise all code to do 2D analysis
         case 'Horizontal'
-            eye_vel = [trials(i).eye(1,2) ; diff( trials(i).eye(:,2))];
+            eye_vel = [trials(i).eye(1,2) ; diff( trials(i).eye(:,2))]; % FIXME move the diff below case statement
             target_pos = trials(i).target(:,2);
         case 'Vertical'
             eye_vel = [trials(i).eye(1,3) ; diff( trials(i).eye(:,3))];
             target_pos = trials(i).target(:,3);
     end
-    eye_vel(isnan(eye_vel))=0;
+    eye_vel(isnan(eye_vel))=0; %  fix missing data... FIXME people saccade during blinks!
     
+    
+    % TODO add our own saccade detection alg.
+    % from eyelink 1000 manual pg. 86:
+    % A velocity threshold of 22 degrees per second allows detection of 
+    % saccades as small as 0.3°, ideal for smooth pursuit and psychophysical 
+    % research. A conservative threshold of 30°/sec is better for reading 
+    % and cognitive research, shortening saccades and lengthening fixation 
+    % durations. The larger threshold also reduces the number of microsaccades 
+    % detected, decreasing the number of short fixations (less than 100 msec 
+    % in duration) in the data. Some short fixations (2% to 3% of total 
+    % fixations) can be expected, and most researchers simply discard these.
     sacc_on = 1 + trials(i).sac(:,1)/(1000/sample_rate); % converts time to index /2 for 500Hz /4 for 250Hz
     sacc_off = 1 + trials(i).sac(:,2)/(1000/sample_rate);
     
     % get rid of saccades before stimulus onset
-    sacc_on(sacc_on<1) = 1;
+    sacc_on(sacc_on<1) = 1; % FIXME just delete the saccades move this code up before the lines above
     sacc_off(sacc_off<2) = 2;
     
-    eye_slow = ones(size(eye_vel));
+    eye_slow = ones(size(eye_vel)); % tag with ones where not saccading and zero where we are saccading
     for sacc_idx = 1:length(sacc_on)
         eye_slow(sacc_on(sacc_idx):sacc_off(sacc_idx)) = 0;
     end
@@ -65,10 +80,10 @@ for i=1:numTrials
 %     target_time = trials(i).target(:,1);
     
     %% detrend
-    slow_eye_pos = detrend(slow_eye_pos);
+    slow_eye_pos = detrend(slow_eye_pos); % some times pursue better in one direction
 %     fast_eye_pos = fast_eye_pos - fast_eye_pos(1);
     eye_pos = detrend(eye_pos);
-    target_pos = detrend(target_pos);
+    target_pos = detrend(target_pos); % why would we need to detrend the target pos?
         
     %% zero pad the data
     
@@ -114,7 +129,7 @@ for i=1:numTrials
     targ_amp = 2*abs(Y2(traceRangeTarg));
     slow_eye_amp = 2*abs(Y3(traceRange));
     
-    %% calculate phase
+    %% calculate phase FIXME the target phase is subtracted out improperly freq do not quite line up
     eye_phase = angle(Y(traceRange));
     targ_phase = angle(Y2(traceRangeTarg));
     slow_eye_phase = angle(Y3(traceRange));
