@@ -30,7 +30,7 @@ if ~exist('print_flag','var') % whether or not to print the results to a pdf fil
 end
 
 %% fourier analysis for comparison
-f_eye = fouri(trials,direction,sample_rate);
+f_eye = fouri2(trials,direction,sample_rate,period);
 
 % view trials
 numTrials = size(trials,2);

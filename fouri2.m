@@ -1,4 +1,4 @@
-function eye = fouri(trials,direction,sample_rate)
+function eye = fouri2(trials,direction,sample_rate,period)
 % fouri - fourier analysis of eye trace data to estimate gain and lag of
 % participant eye motion. Eye traces are broken into fast and slow
 % components. The fast components are the saccades. Right now saccade tags
@@ -12,6 +12,7 @@ function eye = fouri(trials,direction,sample_rate)
 % TODO take out code that is common to targfit.m or merge 
 % TODO upsample target position to eye position sample rate to fix gain and
 % phase measures.
+% load('/Users/schizophrenia/Dropbox/eyetracks/collewijn/testdata/neg5phase1gain.mat')
 
 numTrials = size(trials,2);
 for i=1:numTrials
@@ -48,7 +49,6 @@ for i=1:numTrials
     end
     eye_vel(isnan(eye_vel))=0; %  fix missing data... FIXME people saccade during blinks!
     
-    
     % TODO add our own saccade detection alg.
     % from eyelink 1000 manual pg. 86:
     % A velocity threshold of 22 degrees per second allows detection of 
@@ -70,94 +70,100 @@ for i=1:numTrials
     for sacc_idx = 1:length(sacc_on)
         eye_slow(sacc_on(sacc_idx):sacc_off(sacc_idx)) = 0;
     end
-%     eye_fast = 1 - eye_slow;
     slow_eye_vel = eye_vel.*eye_slow;
-%     fast_eye_vel = eye_vel.*eye_fast;
     slow_eye_pos = cumsum(slow_eye_vel);
-%     fast_eye_pos = cumsum(fast_eye_vel);
     eye_pos = cumsum(eye_vel);
-    eye_time = trials(i).eye(:,1);
-    target_time = trials(i).target(:,1);
+    eye_time = trials(i).eye(:,1)/1000; % convert to seconds
+    target_time = trials(i).target(:,1)/1000;
+
+    % init guesses: amp, phase, freq, offset
+    % upsample target motion
+    statopts = [];
+    amp_guess = (max(target_pos) - min(target_pos)); % FIXME - should amp be divide by 2?
+    offset_guess = (max(target_pos) + min(target_pos))/2;
+    stimFreq = 1/sscanf(period,'%f');
+    B0 = [ amp_guess, 0, 1/sscanf(period,'%f'),offset_guess]; % initial guesses
+    Btarg = nlinfit(target_time,target_pos,@mysin,B0,statopts); % fitted parameters
+    target_fit_pos = mysin(Btarg,eye_time);
     
     %% detrend
-    slow_eye_pos = detrend(slow_eye_pos); % some times pursue better in one direction
-%     fast_eye_pos = fast_eye_pos - fast_eye_pos(1);
-    eye_pos = detrend(eye_pos);
-    target_pos = detrend(target_pos); % why would we need to detrend the target pos?
-        
-    %% zero pad the data
+    detrend_data = true;
+    if detrend_data
+        slow_eye_pos = detrend(slow_eye_pos); % some times pursue better in one direction
+        eye_pos = detrend(eye_pos);
+        target_fit_pos = detrend(target_fit_pos); % why would we need to detrend the target pos?
+    end
     
-    L     = length(eye_pos);
-    Ltarg = length(target_pos);
-    %     Lslow = length(slow_eye_pos);
-    
+    %% zero pad and window the data
+    L = length(eye_pos);
     Z = zeros(L,1);
-    Ztarg = zeros(Ltarg,1);
     
     eye_pos = eye_pos .* hamming(length(eye_pos));
-    slow_eye_pos = slow_eye_pos .* hamming(length(slow_eye_pos));
-    target_pos = target_pos .* hamming(length(target_pos));
+    slow_eye_pos = slow_eye_pos .* hamming(length(eye_pos));
+    target_fit_pos = target_fit_pos .* hamming(length(eye_pos));
     
     eye_pos = [Z; eye_pos; Z];
     slow_eye_pos = [Z; slow_eye_pos; Z];
-%     fast_eye_pos = [Z; fast_eye_pos; Z];
-    target_pos = [Ztarg; target_pos; Ztarg];
+    target_fit_pos = [Z; target_fit_pos; Z];
+    eye_time = [eye_time - eye_time(end); eye_time; eye_time + eye_time(end)];
+    L = length(eye_pos);
     
-    eye_time = [Z; eye_time; Z+eye_time(end)];
-    target_time = [Ztarg; target_time; Ztarg+target_time(end)];
-
-    L     = length(eye_pos);
-    Ltarg = length(target_pos);
-
     %% fourier amplitude
     %     subplot(2,2,3)
     Fs = sample_rate  ; % sample rate Hz
     Fs_stim = 120 ; % monitor refresh freq Hz
-
-    NFFT = Ltarg * ( Fs/Fs_stim );
-    NFFTtarg = Ltarg;     
-    Y  = fft(eye_pos,NFFT)/L;
-    Y2 = fft(target_pos,NFFTtarg)/Ltarg;
-    Y3 = fft(slow_eye_pos,NFFT)/L;
     
-%     f = Fs/2*linspace(0,1,NFFT/2+1);
-    f_targ = Fs_stim/2*linspace(0,1,NFFTtarg/2+1);
+    Yeye  = fft(eye_pos,L)/L;
+    Ytarg = fft(target_fit_pos,L)/L;
+    Yslow = fft(slow_eye_pos,L)/L;
     
-    traceRange = int32(1:NFFT/2+1);
-    traceRangeTarg = int32(1:NFFTtarg/2+1);
-    eye_amp = 2*abs(Y(traceRange)); % calculate amplitude at freq
-    targ_amp = 2*abs(Y2(traceRangeTarg));
-    slow_eye_amp = 2*abs(Y3(traceRange));
+    f = Fs/2*linspace(0,1,L/2+1);
+    Yeye = Yeye(1:L/2+1);
+    Ytarg = Ytarg(1:L/2+1);
+    Yslow = Yslow(1:L/2+1);
+    
+    eye_amp = 2*abs(Yeye); % calculate amplitude at freq
+    targ_amp = 2*abs(Ytarg);
+    slow_eye_amp = 2*abs(Yslow);
     
     %% calculate phase FIXME the target phase is subtracted out improperly freq do not quite line up
-    eye_phase = angle(Y(traceRange));
-    targ_phase = angle(Y2(traceRangeTarg));
-    slow_eye_phase = angle(Y3(traceRange));
-    eye_phase = eye_phase(1:length(targ_phase)) - targ_phase;
-    slow_eye_phase = slow_eye_phase(1:length(targ_phase)) - targ_phase;
+    eye_phase = angle(Yeye);
+    targ_phase = angle(Ytarg);
+    slow_eye_phase = angle(Yslow);
+    eye_phase = rad2deg(eye_phase - targ_phase);
+    slow_eye_phase = rad2deg(slow_eye_phase - targ_phase);
     
-    slow_eye_phase(slow_eye_phase>6) =  slow_eye_phase(slow_eye_phase>6)-2*pi; % get rid of wrap.
-    eye_phase(eye_phase>6) =  eye_phase(eye_phase>6)-2*pi;
+%     slow_eye_phase(slow_eye_phase>6) =  slow_eye_phase(slow_eye_phase>6)-2*pi; % get rid of wrap.
+%     eye_phase(eye_phase>6) =  eye_phase(eye_phase>6)-2*pi;
     
-    % numerically diff to get curvature of function
-    targ_diff2 = [0;0; diff(diff(targ_amp))];
-    
-    % adjust to cut off analysis at low freq end of spectrum
-    targ_diff2_ignore = 1;
-    [~,targ_diff2_min_idx] = min(targ_diff2(targ_diff2_ignore:end)); % find curvature minima
-    targ_diff2_min_idx = targ_diff2_ignore + targ_diff2_min_idx; % shift index back to right place
-
     %% calculate gain
     eye_gain = eye_amp(1:length(targ_amp))./targ_amp;
     slow_eye_gain = slow_eye_amp(1:length(targ_amp))./targ_amp;
     
-    eye(i).gain = eye_gain(targ_diff2_min_idx);
-    eye(i).slow.gain = slow_eye_gain(targ_diff2_min_idx);
-    eye(i).phase = rad2deg(eye_phase(targ_diff2_min_idx));
-    eye(i).slow.phase = rad2deg(slow_eye_phase(targ_diff2_min_idx));
-    eye(i).freq = f_targ(targ_diff2_min_idx);
+    fRightIdx = find(f>stimFreq,1,'first');
+    fLeftIdx = find(stimFreq>=f,1,'last');
     
+    eye(i).gain = eye_gain(fRightIdx);
+    eye(i).slow.gain = slow_eye_gain(fRightIdx);
+    eye(i).phase = eye_phase(fRightIdx);
+    eye(i).slow.phase = slow_eye_phase(fRightIdx);
+    eye(i).freq = f(fRightIdx);
+    
+    %% plot results
+%     subplot(2,1,1)
+%     plot(eye_time,target_fit_pos,':',eye_time,eye_pos)
+%     
+%     subplot(2,1,2)
+%     plot(f,targ_amp,':',f,eye_amp,f,eye_phase,[1 1]*f(fRightIdx),[-10 20])
+%     xlim([0 2*stimFreq])
     
 end
 
+%% function to fit
+% init guesses: 1 amp, 2 phase, 3 freq, 4 offset
+function yhat = mysin(B,X) % TODO add other predictors into model like turnarounds and extra cos for pseudo random
+
+yhat = B(4) + B(1) * cos( B(2) +  2*pi * B(3) * X);
+
+return
 

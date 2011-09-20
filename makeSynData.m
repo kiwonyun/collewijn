@@ -15,14 +15,14 @@ offs = (maxTarget + minTarget) /2;
 
 %% make 0 phase 1 gain plus noise
 synPos = offs + ampl * cos(phaseTweak + 2*pi*(frequency/1000)*trials.eye(:,1));
-synPos = synPos + randn(length(synPos),1)*ampl*0.05;
+% synPos = synPos + randn(length(synPos),1)*ampl*0.05;
 trials.eye(:,2) = synPos;
 trials.eye(:,3) = 0;
 
 subplot(3,1,1)
 plot(trials.target(:,1),trials.target(:,2),trials.eye(:,1),trials.eye(:,2))
 
-save('testdata/0phase1gain.mat','background','collectedData','direction',...
+save('testdata/0phase1gain0noise.mat','background','collectedData','direction',...
     'period','sample_rate','targetColor','targetFrequency','targetSize','trials');
 
 %% make 0 phase 0.5 gain 
